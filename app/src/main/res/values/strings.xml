@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">MyJournalApp</string>
+    <string name="onboarding_title_1">Chào mừng bạn!</string>
+    <string name="onboarding_desc_1">Ghi lại hành trình cảm xúc và những khoảnh khắc đáng nhớ mỗi ngày.</string>
+    <string name="onboarding_title_2">Gợi ý thông minh</string>
+    <string name="onboarding_desc_2">Ứng dụng sẽ đề xuất những kỷ niệm từ ảnh, địa điểm để bạn dễ dàng bắt đầu viết.</string>
+    <string name="onboarding_title_3">An toàn và Riêng tư</string>
+    <string name="onboarding_desc_3">Mọi tâm tư của bạn đều được bảo vệ an toàn ngay trên thiết bị.</string>
+
+    <string name="onboarding_next">Tiếp tục</string>
+    <string name="onboarding_get_started">Bắt đầu</string>
+</resources>
