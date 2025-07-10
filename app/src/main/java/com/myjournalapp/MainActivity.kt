@@ -1,175 +1,169 @@
-package com.myjournalapp // <<--- PACKAGE NAME CỦA BẠN
+package com.myjournalapp
 
-import android.app.Activity
-import android.content.Context
 import android.os.Bundle
-import android.util.Log
-import androidx.activity.ComponentActivity
+import android.widget.Toast
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge // Import hàm helper mới
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.activity.enableEdgeToEdge
+import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
-// import androidx.core.view.WindowCompat // Không cần import này nữa nếu chỉ dùng enableEdgeToEdge()
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.myjournalapp.navigation.MyJournalBottomNavItem
+import com.myjournalapp.navigation.MyJournalNavHost
+import com.myjournalapp.ui.theme.MyJournalAppTheme
+import com.myjournalapp.util.BiometricAuthenticator
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
+import com.myjournalapp.data.preferences.UserPreferencesRepository
+import com.myjournalapp.navigation.MyJournalDestinations
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.draw.blur
+import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
-import com.myjournalapp.ui.onboarding.OnboardingScreen
-import com.myjournalapp.ui.theme.MyJournalAppTheme // <<--- KIỂM TRA TÊN THEME CỦA BẠN
-import com.myjournalapp.ui.timeline.TimelineScreen
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
-// --- Thiết lập DataStore Preferences ---
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "app_settings")
-private val ONBOARDING_COMPLETED_KEY = booleanPreferencesKey("onboarding_completed")
+@AndroidEntryPoint
+class MainActivity : AppCompatActivity() {
 
-// --- MainActivity ---
-class MainActivity : ComponentActivity() {
-
-    private var isLoadingContent = true
-
+    @Inject
+    lateinit var userPreferencesRepository: UserPreferencesRepository
     override fun onCreate(savedInstanceState: Bundle?) {
-        // --- THỨ TỰ KHỞI TẠO QUAN TRỌNG ---
-        // 1. Bật Edge-to-Edge (nên gọi đầu tiên)
+        installSplashScreen()
         enableEdgeToEdge()
-
-        // 2. Cài đặt Splash Screen (ngay sau enableEdgeToEdge, trước super.onCreate)
-        val splashScreen = installSplashScreen()
-
-        // 3. Gọi super.onCreate
         super.onCreate(savedInstanceState)
-        // -----------------------------------
 
-        // 4. Giữ Splash Screen hiển thị nếu cần
-        splashScreen.setKeepOnScreenCondition { isLoadingContent }
-
-        // 5. Thiết lập giao diện
         setContent {
-            MyJournalAppTheme { // <<--- Đảm bảo dùng đúng tên Theme của bạn
+            MyJournalAppTheme {
 
-                // --- Điều chỉnh System UI ---
+                // -- System UI --
+                val colorScheme = MaterialTheme.colorScheme
                 val view = LocalView.current
-                val darkTheme: Boolean = isSystemInDarkTheme()
-                if (!view.isInEditMode) {
-                    SideEffect {
-                        val window = (view.context as Activity).window
-                        // Đặt thanh hệ thống trong suốt
-                        window.statusBarColor = Color.Transparent.toArgb()
-                        window.navigationBarColor = Color.Transparent.toArgb()
+                val darkTheme = isSystemInDarkTheme()
 
-                        // Điều chỉnh màu icon hệ thống
-                        val insetsController = WindowCompat.getInsetsController(window, view)
-//                        insetsController.isAppearanceLightStatusBars = !darkTheme
-//                        insetsController.isAppearanceLightNavigationBars = !darkTheme
-                    }
+                SideEffect {
+                    val window = (view.context as AppCompatActivity).window
+                    window.statusBarColor = android.graphics.Color.TRANSPARENT // hoặc Color.Transparent.toArgb()
+                    WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
                 }
-                // --- Kết thúc System UI ---
 
+
+                // -- Auth state --
                 val context = LocalContext.current
+                val lifecycleOwner = LocalLifecycleOwner.current
+                val showMainContent = remember { mutableStateOf(false) } // New state
 
-                // --- Đọc trạng thái onboarding ---
-                val onboardingCompletedFlow: Flow<Boolean> = remember {
-                    context.dataStore.data.map { preferences ->
-                        preferences[ONBOARDING_COMPLETED_KEY] ?: false
+                DisposableEffect(lifecycleOwner) {
+                    val observer = LifecycleEventObserver { _, event ->
+                        if (event == Lifecycle.Event.ON_START) {
+                            lifecycleOwner.lifecycleScope.launch { // Launch a coroutine
+                                delay(200) // Add a small delay to ensure UI renders blur
+                                BiometricAuthenticator.authenticate(
+                                    context = context,
+                                    title = "Xác thực để tiếp tục",
+                                    subtitle = "Sử dụng vân tay hoặc khuôn mặt của bạn",
+                                    description = "",
+                                    onSuccess = { showMainContent.value = true },
+                                    onFailure = { _, errString ->
+                                        Toast.makeText(context, "Xác thực thất bại: $errString", Toast.LENGTH_SHORT).show()
+                                        finish()
+                                    },
+                                    onError = { _, errString ->
+                                        Toast.makeText(context, "Lỗi xác thực: $errString", Toast.LENGTH_SHORT).show()
+                                        finish()
+                                    }
+                                )
+                            }
+                        }
                     }
-                }
-                val onboardingCompleted by onboardingCompletedFlow.collectAsState(initial = null)
-
-                // --- Cập nhật cờ isLoadingContent ---
-                LaunchedEffect(onboardingCompleted) {
-                    if (onboardingCompleted != null) {
-                        isLoadingContent = false
-                    }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                 }
 
-                // --- Hiển thị nội dung chính ---
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AnimatedVisibility(
-                        visible = onboardingCompleted != null,
-                        enter = fadeIn(/* ... */), // Giữ nguyên hiệu ứng
-                        exit = fadeOut(/* ... */)
-                    ) {
-                        if (onboardingCompleted == false) {
-                            OnboardingScreen(
-                                onCompleted = {
-                                    lifecycleScope.launch {
-                                        context.dataStore.edit { settings ->
-                                            settings[ONBOARDING_COMPLETED_KEY] = true
-                                        }
+                val onboardingCompleted by userPreferencesRepository.onboardingCompleted.collectAsStateWithLifecycle(initialValue = false)
+                val initialStartDestination = remember(onboardingCompleted) {
+                    if (onboardingCompleted) MyJournalDestinations.DASHBOARD_ROUTE else MyJournalDestinations.ONBOARDING_ROUTE
+                }
+
+                if (showMainContent.value) {
+                    val navController = rememberNavController()
+                    val navBackStackEntry by navController.currentBackStackEntryAsState()
+                    val currentDestination = navBackStackEntry?.destination
+                    val noBottomNavRoutes = listOf(MyJournalDestinations.ONBOARDING_ROUTE)
+
+                    Scaffold(
+                        bottomBar = {
+                            if (currentDestination?.route !in noBottomNavRoutes) {
+                                NavigationBar {
+                                    MyJournalBottomNavItem.items.forEach { screen ->
+                                        NavigationBarItem(
+                                            icon = { Icon(screen.icon, contentDescription = null) },
+                                            label = { Text(screen.title) },
+                                            selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                                            onClick = {
+                                                navController.navigate(screen.route) {
+                                                    popUpTo(navController.graph.findStartDestination().id) {
+                                                        saveState = true
+                                                    }
+                                                    launchSingleTop = true
+                                                    restoreState = true
+                                                }
+                                            }
+                                        )
                                     }
                                 }
-                            )
-                        } else {
-                            // ----- **THAY THẾ MainAppScreen() BẰNG TimelineScreen() TẠI ĐÂY** -----
-                            TimelineScreen(
-                                // 1. Truyền lambda cho hành động xem chi tiết
-                                onNavigateToDetail = { entryId ->
-                                    // Đây là nơi bạn sẽ dùng NavController để điều hướng
-                                    // Ví dụ: navController.navigate("detailRoute/${entryId}")
-                                    Log.d("MainActivity", "Navigate to Detail Screen for ID: $entryId")
-                                    // TODO: (Sau này) Triển khai điều hướng thực tế đến màn hình Chi tiết
-                                },
+                            }
+                        },
+                        contentWindowInsets = WindowInsets(0,0,0,0) // disable auto insets
+                    ) { innerPadding ->
+                        MyJournalNavHost(
+                            navController = navController,
+                            modifier = Modifier.fillMaxSize(), // Keep this for the NavHost itself
+                            startDestination = initialStartDestination
+                        )
+                    }
 
-                                // 2. Truyền lambda cho hành động tạo mới (nhấn FAB, nhấn gợi ý)
-                                onNavigateToCreate = {
-                                    // Đây là nơi bạn sẽ dùng NavController để điều hướng
-                                    // Ví dụ: navController.navigate("createRoute")
-                                    Log.d("MainActivity", "Navigate to Create Screen")
-                                    // TODO: (Sau này) Triển khai điều hướng thực tế đến màn hình Tạo mới
-                                },
 
-                                // 3. (Tùy chọn) Truyền lambda cho các hành động khác nếu cần
-                                // onNavigateToSearch = { /* Xử lý nhấn nút tìm kiếm */ },
-                                // onNavigateToFilter = { /* Xử lý nhấn nút lọc */ }
+                } else {
+                    // Loading / Auth Screen
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(radius = 16.dp), // Apply blur here
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "Đang chờ xác thực sinh trắc học...",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onBackground
                             )
-                            // ----- **KẾT THÚC THAY THẾ** -----
                         }
-                    } // Kết thúc AnimatedVisibility
-                } // Kết thúc Surface
-            } // Kết thúc Theme
-        } // Kết thúc setContent
-    } // Kết thúc onCreate
-} // Kết thúc MainActivity
-
-// --- Placeholder Màn hình chính ---
-@Composable
-fun MainAppScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Text("Đây là Màn hình chính")
-    }
-}
-
-// --- Preview ---
-@Preview(showBackground = true)
-@Composable
-fun DefaultPreview() {
-    MyJournalAppTheme { // <<--- Đảm bảo dùng đúng tên Theme của bạn
-        MainAppScreen()
+                    }
+                }
+            }
+        }
     }
 }

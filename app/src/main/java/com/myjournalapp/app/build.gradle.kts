@@ -54,8 +54,6 @@ android {
 
 dependencies {
 
-    
-    
     // Core & Appcompat
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -74,7 +72,6 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.material3.window.size) // For adaptive layouts
 
     // Navigation
@@ -83,17 +80,13 @@ dependencies {
     // Data (Room & DataStore)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.material3)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.datastore.preferences)
 
     // Dependency Injection (Hilt)
     implementation(libs.hilt.android)
-    ksp(libs.hilt.compiler)
+        ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
-
-    // Biometric
-    implementation(libs.androidx.biometric)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

@@ -1,18 +1,27 @@
-package com.myjournalapp.ui.theme // <<--- THAY PACKAGE NAME
+package com.myjournalapp.ui.theme
 
-// Chỉ import những gì cần thiết cho Theme Composable
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
+import androidx.compose.material3.expressiveLightColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
 
-// --- Bảng màu sáng ---
-// Ánh xạ các màu từ Color.kt vào vai trò ngữ nghĩa của Material 3
 private val LightColorScheme = lightColorScheme(
     primary = md_theme_light_primary,
     onPrimary = md_theme_light_onPrimary,
@@ -40,12 +49,15 @@ private val LightColorScheme = lightColorScheme(
     inverseOnSurface = md_theme_light_inverseOnSurface,
     inverseSurface = md_theme_light_inverseSurface,
     inversePrimary = md_theme_light_inversePrimary,
-    surfaceTint = md_theme_light_surfaceTint,
-    outlineVariant = md_theme_light_outlineVariant,
-    scrim = md_theme_light_scrim,
+    surfaceDim = md_theme_light_surfaceDim,
+    surfaceBright = md_theme_light_surfaceBright,
+    surfaceContainerLowest = md_theme_light_surfaceContainerLowest,
+    surfaceContainerLow = md_theme_light_surfaceContainerLow,
+    surfaceContainer = md_theme_light_surfaceContainer,
+    surfaceContainerHigh = md_theme_light_surfaceContainerHigh,
+    surfaceContainerHighest = md_theme_light_surfaceContainerHighest,
 )
 
-// --- Bảng màu tối ---
 private val DarkColorScheme = darkColorScheme(
     primary = md_theme_dark_primary,
     onPrimary = md_theme_dark_onPrimary,
@@ -73,36 +85,51 @@ private val DarkColorScheme = darkColorScheme(
     inverseOnSurface = md_theme_dark_inverseOnSurface,
     inverseSurface = md_theme_dark_inverseSurface,
     inversePrimary = md_theme_dark_inversePrimary,
-    surfaceTint = md_theme_dark_surfaceTint,
-    outlineVariant = md_theme_dark_outlineVariant,
-    scrim = md_theme_dark_scrim,
+    surfaceDim = md_theme_dark_surfaceDim,
+    surfaceBright = md_theme_dark_surfaceBright,
+    surfaceContainerLowest = md_theme_dark_surfaceContainerLowest,
+    surfaceContainerLow = md_theme_dark_surfaceContainerLow,
+    surfaceContainer = md_theme_dark_surfaceContainer,
+    surfaceContainerHigh = md_theme_dark_surfaceContainerHigh,
+    surfaceContainerHighest = md_theme_dark_surfaceContainerHighest,
 )
 
-// --- Theme Composable chính ---
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun MyJournalAppTheme( // <<--- TÊN THEME CỦA BẠN
+fun MyJournalAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true, // Cho phép màu động trên Android 12+
+    // Dynamic color is available on Android 12+
+    dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    // Chọn bảng màu phù hợp
+    val isDarkTheme = isSystemInDarkTheme()
+    val supportsDynamicColor = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
+    val darkColorScheme = darkColorScheme(primary = Color(0xFF66ffc7))
     val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        supportsDynamicColor && isDarkTheme -> {
+            dynamicDarkColorScheme(LocalContext.current)
         }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+        supportsDynamicColor && !isDarkTheme -> {
+            dynamicLightColorScheme(LocalContext.current)
+        }
+        isDarkTheme -> darkColorScheme
+        else -> expressiveLightColorScheme()
+    }
+    val shapes = Shapes(largeIncreased = RoundedCornerShape(36.0.dp))
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
     }
 
-    // ----- KHÔNG CÓ SideEffect ĐỂ THAY ĐỔI SYSTEM UI Ở ĐÂY -----
-    // Logic này nên nằm ở MainActivity để xử lý edge-to-edge đúng cách
-
-    // Áp dụng MaterialTheme cho toàn bộ nội dung bên trong
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
-        typography = AppTypography, // Từ Type.kt
-        shapes = AppShapes,         // Từ Shape.kt
-        content = content           // Nội dung UI của bạn
+        typography = Typography,
+        content = content,
+        shapes = shapes
     )
 }
