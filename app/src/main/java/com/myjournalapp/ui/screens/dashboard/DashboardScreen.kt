@@ -41,6 +41,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Scaffold
@@ -50,6 +52,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberTopAppBarState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -76,73 +79,77 @@ fun DashboardScreen(
     val onRefresh: () -> Unit = {
         isRefreshing = true
         coroutineScope.launch {
-            delay(1500) // Simulate a network call
+            delay(3300) // Simulate a network call
             isRefreshing = false
         }
     }
 
     val lazyGridState = rememberLazyGridState()
-    // Sử dụng enterAlwaysScrollBehavior để ẩn/hiện TopAppBar khi cuộn
-    // Nếu bạn muốn TopAppBar biến mất hoàn toàn và chỉ hiển thị khi cuộn xuống hết,
-    // hãy thử TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = { Text("Chào buổi sáng!") },
-                scrollBehavior = scrollBehavior,
-                // Để TopAppBar cuộn qua khỏi status bar, bạn cần đảm bảo
-                // background của TopAppBar là trong suốt hoặc đủ mờ để thấy nội dung bên dưới,
-                // và Scaffold phải được cấu hình edge-to-edge.
-                // Màu nền mặc định của TopAppBar sẽ che status bar nếu không có inset,
-                // nhưng scrollBehavior sẽ giúp nó di chuyển.
-                // Nếu muốn hiệu ứng trong suốt/mờ thì tùy chỉnh ở đây:
-                 colors = TopAppBarDefaults.topAppBarColors(
-                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0f) // Ví dụ màu mờ
-                 )
-            )
-        },
-    ) { innerPadding ->
-        PullToRefreshBox(
-            state = pullRefreshState,
-            isRefreshing = isRefreshing,
-            onRefresh = onRefresh,
-            indicator = {
-                PullToRefreshDefaults.LoadingIndicator(
-                    state = pullRefreshState,
-                    isRefreshing = isRefreshing,
-                    modifier = Modifier.align(Alignment.TopCenter)
-                )
-            }
-        ) {
-            LazyVerticalGrid(
-                state = lazyGridState,
-                columns = GridCells.Fixed(2),
+    val collapsedFraction by remember {
+        derivedStateOf { scrollBehavior.state.collapsedFraction }
+    }
+    val dynamicAlpha = 1f - collapsedFraction
+    val dynamicColor = MaterialTheme.colorScheme.surface.copy(alpha = dynamicAlpha)
+    val overscrollEffect = rememberOverscrollEffect()
+
+    PullToRefreshBox(
+        state = pullRefreshState,
+        isRefreshing = isRefreshing,
+        onRefresh = onRefresh,
+        indicator = {
+            PullToRefreshDefaults.LoadingIndicator(
+                state = pullRefreshState,
+                isRefreshing = isRefreshing,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                contentPadding = innerPadding,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item { MoodTodayWidget(mood = uiState.todayMood) }
-                item { WeatherWidget(weather = uiState.weather) }
-                item(span = { GridItemSpan(2) }) {
-                    PromptCard(prompt = uiState.dailyPrompt, onAnswer = { /* TODO */ })
+                    .align(Alignment.TopCenter)
+                    .padding(top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding())
+            )
+        }
+    ) {
+        Scaffold(
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                TopAppBar(
+                    title = { Text("Chào buổi sáng!") },
+                    scrollBehavior = scrollBehavior,
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = dynamicColor,
+                        scrolledContainerColor = dynamicColor
+                    )
+                )
+            },
+        ) { innerPadding ->
+
+                LazyVerticalGrid(
+                    state = lazyGridState,
+                    columns = GridCells.Fixed(2),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp).overscroll(overscrollEffect = overscrollEffect),
+                    contentPadding = innerPadding,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    item { MoodTodayWidget(mood = uiState.todayMood) }
+                    item { WeatherWidget(weather = uiState.weather) }
+                    item(span = { GridItemSpan(2) }) {
+                        PromptCard(prompt = uiState.dailyPrompt, onAnswer = { /* TODO */ })
+                    }
+                    item { QuickNoteCard(note = uiState.quickNote, onEdit = { /* TODO */ }) }
+                    item { ChallengeStatusCard(challenge = uiState.currentChallenge) }
+                    item(span = { GridItemSpan(2) }) { CalendarMoodHeatmap() }
+                    item(span = { GridItemSpan(2) }) { RecentPhotosGrid() }
+                    item(span = { GridItemSpan(2) }) { Calendar() }
+                    item(span = { GridItemSpan(2) }) {
+                        Spacer(modifier = Modifier.height(bottomPadding))
+                    }
                 }
-                item { QuickNoteCard(note = uiState.quickNote, onEdit = { /* TODO */ }) }
-                item { ChallengeStatusCard(challenge = uiState.currentChallenge) }
-                item(span = { GridItemSpan(2) }) { CalendarMoodHeatmap() }
-                item(span = { GridItemSpan(2) }) { RecentPhotosGrid() }
-                item(span = { GridItemSpan(2) }) { Calendar() }
-                item(span = { GridItemSpan(2) }) {
-                    Spacer(modifier = Modifier.height(bottomPadding))
-                }
-            }
+
         }
     }
+
 }
 
 @Composable

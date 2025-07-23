@@ -5,15 +5,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import java.time.LocalDate
 import javax.inject.Inject
-
-data class TimelineUiState(
-    val entries: List<String> = emptyList(),
-    val searchQuery: String = "",
-    val filteredEntries: List<String> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
-)
+import com.myjournalapp.data.model.Entry
 
 @HiltViewModel
 class TimelineViewModel @Inject constructor() : ViewModel() {
@@ -22,17 +17,48 @@ class TimelineViewModel @Inject constructor() : ViewModel() {
     val uiState: StateFlow<TimelineUiState> = _uiState.asStateFlow()
 
     init {
-        // Simulate loading entries
-        _uiState.value = _uiState.value.copy(
-            entries = listOf("Entry 1 (2025-07-01)", "Entry 2 (2025-07-01)", "Entry 3 (2025-07-02)"),
-            filteredEntries = listOf("Entry 1 (2025-07-01)", "Entry 2 (2025-07-01)", "Entry 3 (2025-07-02)")
-        )
+        // Load dummy data for now
+        _uiState.update { currentState ->
+            currentState.copy(
+                entries = generateDummyEntries(),
+                filteredEntries = generateDummyEntries()
+            )
+        }
     }
 
-    fun onSearchQueryChange(query: String) {
-        _uiState.value = _uiState.value.copy(
-            searchQuery = query,
-            filteredEntries = _uiState.value.entries.filter { it.contains(query, ignoreCase = true) }
-        )
+    fun onSearchQueryChanged(query: String) {
+        _uiState.update { currentState ->
+            val filtered = if (query.isBlank()) {
+                currentState.entries
+            } else {
+                currentState.entries.filter {
+                    it.preview.contains(query, ignoreCase = true) ||
+                    it.mood.contains(query, ignoreCase = true)
+                }
+            }
+            currentState.copy(
+                searchQuery = query,
+                filteredEntries = filtered,
+                isSearching = query.isNotBlank()
+            )
+        }
+    }
+
+    private fun generateDummyEntries(): List<Entry> {
+        return listOf(
+            Entry("1", LocalDate.of(2024, 7, 10), "Happy", "Today was a great day!"),
+            Entry("2", LocalDate.of(2024, 7, 10), "Calm", "Meditated for 30 minutes."),
+            Entry("3", LocalDate.of(2024, 7, 9), "Sad", "Feeling a bit down today."),
+            Entry("4", LocalDate.of(2024, 7, 8), "Excited", "Started a new project!"),
+            Entry("5", LocalDate.of(2024, 7, 8), "Neutral", "Just a regular day."),
+            Entry("6", LocalDate.of(2024, 7, 7), "Happy", "Met old friends.")
+        ).sortedByDescending { it.date }
     }
 }
+
+data class TimelineUiState(
+    val entries: List<Entry> = emptyList(),
+    val searchQuery: String = "",
+    val filteredEntries: List<Entry> = emptyList(),
+    val isSearching: Boolean = false
+)

@@ -47,7 +47,12 @@ fun MyJournalNavHost(
             DashboardScreen()
         }
         composable(MyJournalDestinations.TIMELINE_ROUTE) {
-            TimelineScreen()
+            TimelineScreen(onEntryClick = { entry ->
+                navController.navigate(MyJournalDestinations.ENTRY_DETAIL_ROUTE.replace(
+                    "{entryId}",
+                    entry.id
+                ))
+            })
         }
         composable(MyJournalDestinations.EDITOR_ROUTE) {
             EntryEditorScreen()

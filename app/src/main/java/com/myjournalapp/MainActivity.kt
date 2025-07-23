@@ -1,5 +1,6 @@
 package com.myjournalapp
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
@@ -37,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.blur
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
+import com.myjournalapp.services.JournalChallengeService
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
