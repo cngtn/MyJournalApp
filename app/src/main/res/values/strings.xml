@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">MyJournalApp</string>
+    <string name="app_name">Journal</string>
     <string name="onboarding_title_1">Chào mừng bạn!</string>
     <string name="onboarding_desc_1">Ghi lại hành trình cảm xúc và những khoảnh khắc đáng nhớ mỗi ngày.</string>
     <string name="onboarding_title_2">Gợi ý thông minh</string>
@@ -9,4 +9,8 @@
 
     <string name="onboarding_next">Tiếp tục</string>
     <string name="onboarding_get_started">Bắt đầu</string>
+
+    <string name="permission_message">Để nhận thông báo về phiên thiền, vui lòng cấp quyền thông báo.</string>
+    <string name="permission_rationale">Quyền thông báo là cần thiết để hiển thị tiến trình thiền của bạn.</string>
+    <string name="permission_grant">Cấp quyền</string>
 </resources>

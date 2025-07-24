@@ -14,15 +14,24 @@
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android.supportsRtl="true"
+        android:roundIcon="@drawable/ic_launcher_monochrome"
+        android:supportsRtl="true"
         android:name=".MyJournalApplication"
         android:theme="@style/Theme.App.Starting"
-        tools:targetApi="31">
+        >
+        <meta-data
+            android:name="android.theme_icon"
+            android:resource="@drawable/ic_launcher_monochrome" />
         <service
             android:name=".services.JournalChallengeService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <receiver android:name=".notifications.MeditationNotificationManager$MeditationActionReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.myjournalapp.STOP_MEDITATION" />
+            </intent-filter>
+        </receiver>
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -88,7 +88,7 @@ fun WelcomeStep(onNext: () -> Unit) {
         OnboardingStepCard(
             title = "Chào mừng đến với MyJournalApp!",
             description = "Hành trình ghi lại cảm xúc và suy nghĩ của bạn bắt đầu từ đây.",
-            image = painterResource(id = R.drawable.ic_launcher_foreground)
+            image = painterResource(id = R.drawable.ic_launcher)
         )
         Spacer(modifier = Modifier.height(32.dp))
         PrimaryButton(text = "Bắt đầu", onClick = onNext)

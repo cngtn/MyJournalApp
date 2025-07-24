@@ -2,6 +2,7 @@ package com.myjournalapp.ui.screens.dashboard
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -60,6 +61,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import android.app.NotificationManager
+import android.content.Context
+import androidx.compose.ui.platform.LocalContext
+import com.myjournalapp.notifications.MeditationNotificationManager
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
+import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.ui.res.stringResource
+import com.myjournalapp.R
 
 // ...
 
@@ -69,6 +85,11 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+    // Initialize MeditationNotificationManager
+    MeditationNotificationManager.initialize(context.applicationContext, notificationManager)
 
     // Lấy padding an toàn cho thanh điều hướng dưới cùng.
     val bottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 100.dp
@@ -122,34 +143,113 @@ fun DashboardScreen(
             },
         ) { innerPadding ->
 
-                LazyVerticalGrid(
-                    state = lazyGridState,
-                    columns = GridCells.Fixed(2),
+                Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 16.dp).overscroll(overscrollEffect = overscrollEffect),
-                    contentPadding = innerPadding,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                        .padding(innerPadding)
                 ) {
-                    item { MoodTodayWidget(mood = uiState.todayMood) }
-                    item { WeatherWidget(weather = uiState.weather) }
-                    item(span = { GridItemSpan(2) }) {
-                        PromptCard(prompt = uiState.dailyPrompt, onAnswer = { /* TODO */ })
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        NotificationPermission()
                     }
-                    item { QuickNoteCard(note = uiState.quickNote, onEdit = { /* TODO */ }) }
-                    item { ChallengeStatusCard(challenge = uiState.currentChallenge) }
-                    item(span = { GridItemSpan(2) }) { CalendarMoodHeatmap() }
-                    item(span = { GridItemSpan(2) }) { RecentPhotosGrid() }
-                    item(span = { GridItemSpan(2) }) { Calendar() }
-                    item(span = { GridItemSpan(2) }) {
-                        Spacer(modifier = Modifier.height(bottomPadding))
+                    LazyVerticalGrid(
+                        state = lazyGridState,
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp).overscroll(overscrollEffect = overscrollEffect),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item { MoodTodayWidget(mood = uiState.todayMood) }
+                        item { WeatherWidget(weather = uiState.weather) }
+                        item(span = { GridItemSpan(2) }) {
+                            PromptCard(prompt = uiState.dailyPrompt, onAnswer = { /* TODO */ })
+                        }
+                        item { QuickNoteCard(note = uiState.quickNote, onEdit = { /* TODO */ }) }
+                        item { ChallengeStatusCard(challenge = uiState.currentChallenge) }
+                        item(span = { GridItemSpan(2) }) {
+                            Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text("Thiền", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    PrimaryButton(
+                                        text = "Bắt đầu Thiền",
+                                        onClick = {
+                                            MeditationNotificationManager.startMeditationNotifications()
+                                        }
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    PrimaryButton(
+                                        text = "Dừng Thiền",
+                                        onClick = {
+                                            MeditationNotificationManager.stopMeditation()
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        item(span = { GridItemSpan(2) }) { CalendarMoodHeatmap() }
+                        item(span = { GridItemSpan(2) }) { RecentPhotosGrid() }
+                        item(span = { GridItemSpan(2) }) { Calendar() }
+                        item(span = { GridItemSpan(2) }) {
+                            Spacer(modifier = Modifier.height(bottomPadding))
+                        }
                     }
                 }
 
         }
     }
 
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
+@RequiresApi(Build.VERSION_CODES.TIRAMISU)
+@Composable
+fun NotificationPermission() {
+    @SuppressLint("InlinedApi") // Granted at install time on API <33.
+    val notificationPermissionState = rememberPermissionState(
+        android.Manifest.permission.POST_NOTIFICATIONS,
+    )
+    if (!notificationPermissionState.status.isGranted) {
+        NotificationPermissionCard(
+            shouldShowRationale = notificationPermissionState.status.shouldShowRationale,
+            onGrantClick = { notificationPermissionState.launchPermissionRequest() },
+            modifier = Modifier
+                .fillMaxWidth()
+        )
+    }
+}
+
+@Composable
+private fun NotificationPermissionCard(
+    shouldShowRationale: Boolean,
+    onGrantClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier,
+    ) {
+        Text(
+            text = stringResource(R.string.permission_message),
+            modifier = Modifier.padding(16.dp),
+        )
+        if (shouldShowRationale) {
+            Text(
+                text = stringResource(R.string.permission_rationale),
+                modifier = Modifier.padding(horizontal = 10.dp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(10.dp),
+            contentAlignment = Alignment.BottomEnd,
+        ) {
+            Button(onClick = onGrantClick) {
+                Text(text = stringResource(R.string.permission_grant))
+            }
+        }
+    }
 }
 
 @Composable

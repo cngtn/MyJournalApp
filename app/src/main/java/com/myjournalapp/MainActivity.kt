@@ -1,5 +1,7 @@
 package com.myjournalapp
 
+import android.app.NotificationManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -38,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.draw.blur
 import kotlinx.coroutines.delay
 import androidx.lifecycle.lifecycleScope
+import com.myjournalapp.notifications.MeditationNotificationManager
 import com.myjournalapp.services.JournalChallengeService
 import kotlinx.coroutines.launch
 
@@ -51,6 +54,10 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
+        // Initialize SnackbarNotificationManager
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        MeditationNotificationManager.initialize(applicationContext, notificationManager)
+
         setContent {
             MyJournalAppTheme {
 
@@ -61,7 +68,7 @@ class MainActivity : AppCompatActivity() {
 
                 SideEffect {
                     val window = (view.context as AppCompatActivity).window
-                    window.statusBarColor = android.graphics.Color.TRANSPARENT // hoặc Color.Transparent.toArgb()
+                    window.statusBarColor = android.graphics.Color.TRANSPARENT
                     WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
                 }
 
@@ -136,7 +143,9 @@ class MainActivity : AppCompatActivity() {
                     ) { innerPadding ->
                         MyJournalNavHost(
                             navController = navController,
-                            modifier = Modifier.fillMaxSize(), // Keep this for the NavHost itself
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding), // Apply innerPadding here
                             startDestination = initialStartDestination
                         )
                     }
